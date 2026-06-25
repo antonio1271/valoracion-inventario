@@ -73,8 +73,9 @@ def limpiar_numero(valor):
 @st.cache_data(ttl=60)
 def cargar_inventario():
     scopes = [
-        "https://www.googleapis.com/auth/spreadsheets.readonly"
-    ]
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
+    "https://www.googleapis.com/auth/drive.readonly"
+]
 
     creds_dict = obtener_credenciales_google()
 
