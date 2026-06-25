@@ -347,4 +347,4 @@ with tab3:
         "La información viene desde Google Sheets privado. "
         "Para ver cambios recientes, presiona el botón de actualizar datos."
     )
-```
+
