@@ -1,38 +1,101 @@
+```python
 import streamlit as st
 import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
 
 st.set_page_config(
-    page_title="Valoración de Inventario",
+    page_title="Econatura Costos y Precios",
     layout="wide"
 )
 
-EXCEL_FILE = "inventario.xlsx"
+SPREADSHEET_ID = "1xqB7s6N9_D7iIXz_fCvNgfPmpTmDNFjhpjND6NuAldI"
 
-st.title("📦 Valoración de Inventario")
-st.write("Sistema para calcular costos, precios de venta, ganancias y márgenes.")
 
-@st.cache_data
+def verificar_password():
+    if st.session_state.get("password_correct", False):
+        return True
+
+    st.title("🌿 Econatura Costos y Precios")
+    st.subheader("Acceso privado")
+
+    password = st.text_input("Contraseña", type="password")
+
+    if st.button("Entrar"):
+        if password == st.secrets["app"]["password"]:
+            st.session_state["password_correct"] = True
+            st.rerun()
+        else:
+            st.error("Contraseña incorrecta.")
+
+    st.stop()
+
+
+verificar_password()
+
+
+def limpiar_numero(valor):
+    if pd.isna(valor):
+        return None
+
+    valor = str(valor)
+    valor = valor.replace("$", "")
+    valor = valor.replace(",", "")
+    valor = valor.strip()
+
+    if valor in ["", "None", "nan"]:
+        return None
+
+    return pd.to_numeric(valor, errors="coerce")
+
+
+@st.cache_data(ttl=60)
 def cargar_inventario():
-    df_raw = pd.read_excel(EXCEL_FILE, sheet_name="Costos", header=None)
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets.readonly"
+    ]
 
-    headers = df_raw.iloc[3].tolist()
-    df = df_raw.iloc[4:].copy()
-    df.columns = headers
+    creds_dict = dict(st.secrets["gcp_service_account"])
 
-    df = df[df["Categoría"].notna()]
+    if "private_key" in creds_dict:
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+
+    credentials = Credentials.from_service_account_info(
+        creds_dict,
+        scopes=scopes
+    )
+
+    client = gspread.authorize(credentials)
+    spreadsheet = client.open_by_key(SPREADSHEET_ID)
+
+    worksheet = spreadsheet.get_worksheet(0)
+
+    rows = worksheet.get_all_values()
+
+    headers = rows[3]
+    data = rows[4:]
+
+    df = pd.DataFrame(data, columns=headers)
+
+    df.columns = [
+        str(col).strip().replace("  ", " ")
+        for col in df.columns
+    ]
+
+    df = df[df["Categoría"].astype(str).str.strip() != ""]
     df = df[df["Categoría"] != "TOTAL COSTOS REGISTRADOS"]
 
-    columnas = [
+    columnas_numericas = [
         "Costo compra",
         "Cantidad compra",
         "Costo unitario",
-        "Costo por  onza",
-        "Costo por libra"
+        "Costo por onza",
+        "Costo por libra",
     ]
 
-    for col in columnas:
+    for col in columnas_numericas:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = df[col].apply(limpiar_numero)
 
     return df.reset_index(drop=True)
 
@@ -49,25 +112,34 @@ def recalcular_costos(df):
             continue
 
         if "libra" in unidad:
-            df.at[i, "Costo por  onza"] = costo / (cantidad * 16)
+            df.at[i, "Costo por onza"] = costo / (cantidad * 16)
             df.at[i, "Costo por libra"] = costo / cantidad
             df.at[i, "Costo unitario"] = None
 
         elif "onza" in unidad:
-            df.at[i, "Costo por  onza"] = costo / cantidad
+            df.at[i, "Costo por onza"] = costo / cantidad
             df.at[i, "Costo por libra"] = (costo / cantidad) * 16
             df.at[i, "Costo unitario"] = None
 
         elif "unidad" in unidad or "label" in unidad:
             df.at[i, "Costo unitario"] = costo / cantidad
-            df.at[i, "Costo por  onza"] = None
+            df.at[i, "Costo por onza"] = None
             df.at[i, "Costo por libra"] = None
 
     return df
 
 
+st.title("🌿 Econatura Costos y Precios")
+st.write("Sistema privado para calcular costos, precios de venta, ganancias y márgenes.")
+
+if st.button("🔄 Actualizar datos desde Google Sheets"):
+    st.cache_data.clear()
+    st.rerun()
+
+
 inventario = cargar_inventario()
 inventario = recalcular_costos(inventario)
+
 
 tab1, tab2, tab3 = st.tabs([
     "📋 Inventario / Costos",
@@ -75,10 +147,14 @@ tab1, tab2, tab3 = st.tabs([
     "📊 Resumen"
 ])
 
+
 with tab1:
     st.subheader("Inventario base")
 
-    st.write("Esta tabla viene de tu archivo Excel final. Puedes editar los datos para probar escenarios.")
+    st.write(
+        "Esta tabla viene directamente de Google Sheets. "
+        "Los cambios realizados en Google Sheets se reflejan aquí al actualizar."
+    )
 
     inventario_editado = st.data_editor(
         inventario,
@@ -88,7 +164,7 @@ with tab1:
             "Costo compra": st.column_config.NumberColumn("Costo compra", format="$%.2f"),
             "Cantidad compra": st.column_config.NumberColumn("Cantidad compra", format="%.2f"),
             "Costo unitario": st.column_config.NumberColumn("Costo unitario", format="$%.4f"),
-            "Costo por  onza": st.column_config.NumberColumn("Costo por onza", format="$%.4f"),
+            "Costo por onza": st.column_config.NumberColumn("Costo por onza", format="$%.4f"),
             "Costo por libra": st.column_config.NumberColumn("Costo por libra", format="$%.4f"),
         }
     )
@@ -170,7 +246,7 @@ with tab2:
         unidad_usada = row.get("Unidad Usada", "oz")
 
         if unidad_usada == "oz":
-            costo_base = data_producto.get("Costo por  onza", 0)
+            costo_base = data_producto.get("Costo por onza", 0)
         elif unidad_usada == "lb":
             costo_base = data_producto.get("Costo por libra", 0)
         else:
@@ -267,4 +343,8 @@ with tab3:
         st.metric("Ganancia promedio", f"${resultados_df['Ganancia'].mean():,.2f}")
         st.metric("Margen promedio", f"{resultados_df['Margen %'].mean():.2f}%")
 
-    st.info("Esta versión usa el Excel como base. Los cambios editados en la app son temporales.")
+    st.info(
+        "La información viene desde Google Sheets privado. "
+        "Para ver cambios recientes, presiona el botón de actualizar datos."
+    )
+```
