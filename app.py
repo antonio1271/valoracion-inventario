@@ -163,8 +163,9 @@ def recalcular_costos(df):
     return df
 
 
-st.title("🌿 Econatura Costos y Precios")
-st.write("Sistema privado para calcular costos, precios de venta, ganancias y márgenes.")
+mostrar_encabezado(
+    "Sistema privado para calcular costos, precios de venta, ganancias y márgenes."
+)
 
 if st.button("🔄 Actualizar datos desde Google Sheets"):
     st.cache_data.clear()
