@@ -1,7 +1,7 @@
-
 import streamlit as st
 import pandas as pd
 import gspread
+import json
 from google.oauth2.service_account import Credentials
 
 st.set_page_config(
@@ -34,6 +34,27 @@ def verificar_password():
 verificar_password()
 
 
+def obtener_credenciales_google():
+    try:
+        raw_json = st.secrets["gcp"]["service_account_json"]
+    except KeyError:
+        st.error(
+            "Falta configurar el secreto [gcp] service_account_json en Streamlit Secrets."
+        )
+        st.stop()
+
+    try:
+        creds_dict = json.loads(raw_json)
+    except json.JSONDecodeError:
+        st.error(
+            "El JSON de la cuenta de servicio no está en formato válido. "
+            "Verifica que pegaste el JSON completo dentro de service_account_json."
+        )
+        st.stop()
+
+    return creds_dict
+
+
 def limpiar_numero(valor):
     if pd.isna(valor):
         return None
@@ -55,10 +76,7 @@ def cargar_inventario():
         "https://www.googleapis.com/auth/spreadsheets.readonly"
     ]
 
-    creds_dict = dict(st.secrets["gcp_service_account"])
-
-    if "private_key" in creds_dict:
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+    creds_dict = obtener_credenciales_google()
 
     credentials = Credentials.from_service_account_info(
         creds_dict,
@@ -347,4 +365,3 @@ with tab3:
         "La información viene desde Google Sheets privado. "
         "Para ver cambios recientes, presiona el botón de actualizar datos."
     )
-
