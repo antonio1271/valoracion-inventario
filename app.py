@@ -31,8 +31,8 @@ def verificar_password():
     if st.session_state.get("password_correct", False):
         return True
 
-    st.title("🌿 Econatura Costos y Precios")
-    st.subheader("Acceso privado")
+    mostrar_encabezado()
+st.subheader("Acceso privado")
 
     password = st.text_input("Contraseña", type="password")
 
