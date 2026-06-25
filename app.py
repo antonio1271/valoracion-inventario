@@ -6,7 +6,23 @@ from google.oauth2.service_account import Credentials
 
 st.set_page_config(
     page_title="Econatura Costos y Precios",
+    page_icon="logoweb.png",
     layout="wide"
+)
+
+LOGO_FILE = "logoweb.png"
+
+
+def mostrar_encabezado(subtitulo=None):
+    col1, col2 = st.columns([1, 8], vertical_alignment="center")
+
+    with col1:
+        st.image(LOGO_FILE, width=85)
+
+    with col2:
+        st.title("Econatura Costos y Precios")
+        if subtitulo:
+            st.write(subtitulo)
 )
 
 SPREADSHEET_ID = "16saFgtT5ihWJmm7hZU222k6hJ42U6DpPzk7r4F5oVWE"
