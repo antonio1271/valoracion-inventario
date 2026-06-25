@@ -23,7 +23,7 @@ def mostrar_encabezado(subtitulo=None):
         st.title("Econatura Costos y Precios")
         if subtitulo:
             st.write(subtitulo)
-)
+
 
 SPREADSHEET_ID = "16saFgtT5ihWJmm7hZU222k6hJ42U6DpPzk7r4F5oVWE"
 
