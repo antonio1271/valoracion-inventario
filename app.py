@@ -32,7 +32,7 @@ def verificar_password():
         return True
 
     mostrar_encabezado()
-st.subheader("Acceso privado")
+    st.subheader("Acceso privado")
 
     password = st.text_input("Contraseña", type="password")
 
