@@ -522,13 +522,23 @@ with tab2:
 with tab3:
     st.subheader("Resumen general")
 
-    total_costos = inventario_editado["Costo compra"].sum()
+    total_costos_inventario = inventario_editado["Costo compra"].sum()
 
-    st.metric("Costo total registrado", f"${total_costos:,.2f}")
+    st.metric("Costo total registrado en inventario", f"${total_costos_inventario:,.2f}")
 
-    if "resultados_df" in locals() and not resultados_df.empty:
-        st.metric("Ganancia promedio", f"${resultados_df['Ganancia'].mean():,.2f}")
-        st.metric("Margen promedio", f"{resultados_df['Margen %'].mean():.2f}%")
+    if "productos_resultado" in locals() and not productos_resultado.empty:
+        total_costo_productos = productos_resultado["Costo total"].sum()
+        total_ingreso = productos_resultado["Ingreso total"].sum()
+        total_ganancia = productos_resultado["Ganancia total"].sum()
+
+        margen_promedio = productos_resultado["Margen %"].mean()
+
+        st.metric("Costo total de productos calculados", f"${total_costo_productos:,.2f}")
+        st.metric("Ingreso total estimado", f"${total_ingreso:,.2f}")
+        st.metric("Ganancia total estimada", f"${total_ganancia:,.2f}")
+        st.metric("Margen promedio", f"{margen_promedio:.2f}%")
+    else:
+        st.warning("No hay productos calculados todavía.")
 
     st.info(
         "La información viene desde Google Sheets privado. "
