@@ -420,36 +420,28 @@ with tab1:
         "Los cambios realizados en Google Sheets se reflejan aquí al actualizar."
     )
 
-  config_inventario = {
-    "Costo compra": st.column_config.NumberColumn("Costo compra", format="$%.2f"),
-    "Cantidad compra": st.column_config.NumberColumn("Cantidad compra", format="%.2f"),
-    "Costo unitario": st.column_config.NumberColumn("Costo unitario", format="$%.4f"),
-    "Costo por onza": st.column_config.NumberColumn("Costo por onza", format="$%.4f"),
-    "Costo por libra": st.column_config.NumberColumn("Costo por libra", format="$%.4f"),
-}
+    config_inventario = {
+        "Costo compra": st.column_config.NumberColumn("Costo compra", format="$%.2f"),
+        "Cantidad compra": st.column_config.NumberColumn("Cantidad compra", format="%.2f"),
+        "Costo unitario": st.column_config.NumberColumn("Costo unitario", format="$%.4f"),
+        "Costo por onza": st.column_config.NumberColumn("Costo por onza", format="$%.4f"),
+        "Costo por libra": st.column_config.NumberColumn("Costo por libra", format="$%.4f"),
+    }
 
-config_inventario = {
-    columna: configuracion
-    for columna, configuracion in config_inventario.items()
-    if columna in inventario.columns
-}
+    config_inventario = {
+        columna: configuracion
+        for columna, configuracion in config_inventario.items()
+        if columna in inventario.columns
+    }
 
-inventario_editado = st.data_editor(
-    inventario,
-    use_container_width=True,
-    num_rows="dynamic",
-    column_config=config_inventario
-)
-
-    inventario_editado = recalcular_costos(inventario_editado)
-
-    st.download_button(
-        "⬇️ Descargar inventario CSV",
-        data=inventario_editado.to_csv(index=False).encode("utf-8"),
-        file_name="inventario_costos.csv",
-        mime="text/csv"
+    inventario_editado = st.data_editor(
+        inventario,
+        use_container_width=True,
+        num_rows="dynamic",
+        column_config=config_inventario
     )
 
+    inventario_editado = recalcular_costos(inventario_editado)
 
 with tab2:
     st.subheader("Productos, precios y ganancias")
