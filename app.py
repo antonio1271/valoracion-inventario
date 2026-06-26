@@ -89,7 +89,231 @@ def limpiar_numero(valor):
 
     return pd.to_numeric(valor, errors="coerce")
 
+def limpiar_porcentaje(valor):
+    if pd.isna(valor):
+        return 0
 
+    texto = str(valor).replace("%", "").replace(",", "").strip()
+
+    if texto in ["", "None", "nan"]:
+        return 0
+
+    numero = pd.to_numeric(texto, errors="coerce")
+
+    if pd.isna(numero):
+        return 0
+
+    if numero > 1:
+        return numero / 100
+
+    return numero
+
+
+def obtener_columna(df, posibles_nombres):
+    for nombre in posibles_nombres:
+        if nombre in df.columns:
+            return nombre
+    return None
+
+
+@st.cache_data(ttl=60)
+def cargar_productos():
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets.readonly",
+        "https://www.googleapis.com/auth/drive.readonly"
+    ]
+
+    creds_dict = obtener_credenciales_google()
+
+    credentials = Credentials.from_service_account_info(
+        creds_dict,
+        scopes=scopes
+    )
+
+    client = gspread.authorize(credentials)
+    spreadsheet = client.open_by_key(SPREADSHEET_ID)
+
+    worksheet = spreadsheet.worksheet("Productos")
+
+    rows = worksheet.get_all_values()
+
+    headers = rows[2]
+    data = rows[3:]
+
+    df = pd.DataFrame(data, columns=headers)
+
+    df.columns = [
+        str(col).strip().replace("\n", " ").replace("  ", " ")
+        for col in df.columns
+    ]
+
+    df = df[df["Artículo"].astype(str).str.strip() != ""]
+
+    columnas_dinero = [
+        "Costo capsula o empaque",
+        "Costo capsula empaque",
+        "Costo Producto oz",
+        "Costo Label",
+        "Costo Empaque",
+        "Costo producto",
+        "Precio de venta",
+        "Ganancia por Producto",
+        "Costo total",
+        "Ganancia total"
+    ]
+
+    for col in columnas_dinero:
+        if col in df.columns:
+            df[col] = df[col].apply(limpiar_numero)
+
+    if "Cantidad a calcular" in df.columns:
+        df["Cantidad a calcular"] = df["Cantidad a calcular"].apply(limpiar_numero)
+
+    if "Margen de ganancia" in df.columns:
+        df["Margen de ganancia"] = df["Margen de ganancia"].apply(limpiar_porcentaje)
+
+    return df.reset_index(drop=True)
+
+
+def calcular_productos(df):
+    df = df.copy()
+
+    col_capsula = obtener_columna(df, [
+        "Costo capsula o empaque",
+        "Costo capsula empaque"
+    ])
+
+    columnas_base = [
+        col_capsula,
+        "Costo Producto oz",
+        "Costo Label",
+        "Costo Empaque"
+    ]
+
+    columnas_base = [col for col in columnas_base if col is not None]
+
+    for col in [
+        "Costo producto",
+        "Cantidad a calcular",
+        "Margen de ganancia",
+        "Precio de venta",
+        "Ganancia por Producto",
+        "Costo total",
+        "Ganancia total"
+    ]:
+        if col not in df.columns:
+            df[col] = 0
+
+    for i, row in df.iterrows():
+        costo_producto = row.get("Costo producto", 0)
+
+        if pd.isna(costo_producto) or costo_producto == 0:
+            costo_producto = 0
+
+            for col in columnas_base:
+                valor = row.get(col, 0)
+                if not pd.isna(valor):
+                    costo_producto += valor
+
+        cantidad = row.get("Cantidad a calcular", 1)
+        margen = row.get("Margen de ganancia", 0)
+        precio_venta = row.get("Precio de venta", 0)
+
+        cantidad = 1 if pd.isna(cantidad) or cantidad == 0 else cantidad
+        margen = 0 if pd.isna(margen) else margen
+
+        if pd.isna(precio_venta) or precio_venta == 0:
+            precio_venta = costo_producto * (1 + margen)
+
+        ganancia_unidad = precio_venta - costo_producto
+        costo_total = costo_producto * cantidad
+        ganancia_total = ganancia_unidad * cantidad
+        ingreso_total = precio_venta * cantidad
+
+        df.at[i, "Costo producto"] = costo_producto
+        df.at[i, "Precio de venta"] = precio_venta
+        df.at[i, "Ganancia por Producto"] = ganancia_unidad
+        df.at[i, "Costo total"] = costo_total
+        df.at[i, "Ganancia total"] = ganancia_total
+        df.at[i, "Ingreso total"] = ingreso_total
+        df.at[i, "Margen %"] = margen * 100
+
+    return df
+
+
+def generar_pdf_productos(df):
+    buffer = BytesIO()
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        rightMargin=24,
+        leftMargin=24,
+        topMargin=24,
+        bottomMargin=24
+    )
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    titulo = Paragraph("Econatura Costos y Precios - Reporte de Productos", styles["Title"])
+    elements.append(titulo)
+    elements.append(Spacer(1, 12))
+
+    columnas_pdf = [
+        "Categoría",
+        "Artículo",
+        "Costo producto",
+        "Cantidad a calcular",
+        "Margen %",
+        "Precio de venta",
+        "Ganancia por Producto",
+        "Costo total",
+        "Ganancia total",
+        "Ingreso total"
+    ]
+
+    df_pdf = df[[col for col in columnas_pdf if col in df.columns]].copy()
+
+    for col in [
+        "Costo producto",
+        "Precio de venta",
+        "Ganancia por Producto",
+        "Costo total",
+        "Ganancia total",
+        "Ingreso total"
+    ]:
+        if col in df_pdf.columns:
+            df_pdf[col] = df_pdf[col].apply(
+                lambda x: f"${x:,.2f}" if pd.notna(x) else ""
+            )
+
+    if "Margen %" in df_pdf.columns:
+        df_pdf["Margen %"] = df_pdf["Margen %"].apply(
+            lambda x: f"{x:,.2f}%" if pd.notna(x) else ""
+        )
+
+    data = [df_pdf.columns.tolist()] + df_pdf.values.tolist()
+
+    table = Table(data, repeatRows=1)
+
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#EAF6FA")),
+        ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+
+    elements.append(table)
+
+    doc.build(elements)
+
+    buffer.seek(0)
+    return buffer
 @st.cache_data(ttl=60)
 def cargar_inventario():
     scopes = [
