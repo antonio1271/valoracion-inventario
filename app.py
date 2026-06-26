@@ -444,157 +444,80 @@ with tab1:
 
 
 with tab2:
-    st.subheader("Cálculo de precio de venta y ganancia")
+    st.subheader("Productos, precios y ganancias")
 
-    productos = inventario_editado["Artículo"].dropna().tolist()
+    st.write(
+        "Esta tabla viene de la pestaña Productos en Google Sheets. "
+        "Puedes modificar la cantidad a calcular, el margen y el precio de venta para probar escenarios."
+    )
 
-    ventas_inicial = pd.DataFrame([
-        {
-            "Producto Venta": "Bicarbonato 100 cápsulas",
-            "Ingrediente Principal": "Bicarbonato",
-            "Cantidad Usada": 3.0,
-            "Unidad Usada": "oz",
-            "Cápsulas Usadas": 100,
-            "Costo Empaque": 0.30,
-            "Costo Label": 0.30,
-            "Otros Costos": 0.00,
-            "Precio Venta": 15.00
-        },
-        {
-            "Producto Venta": "Cúrcuma 100 cápsulas",
-            "Ingrediente Principal": "Cúrcuma",
-            "Cantidad Usada": 1.0,
-            "Unidad Usada": "oz",
-            "Cápsulas Usadas": 100,
-            "Costo Empaque": 0.30,
-            "Costo Label": 0.30,
-            "Otros Costos": 0.00,
-            "Precio Venta": 15.00
-        }
-    ])
+    productos_base = cargar_productos()
+    productos_calculados = calcular_productos(productos_base)
 
-    ventas = st.data_editor(
-        ventas_inicial,
+    productos_editados = st.data_editor(
+        productos_calculados,
         use_container_width=True,
         num_rows="dynamic",
         column_config={
-            "Ingrediente Principal": st.column_config.SelectboxColumn(
-                "Ingrediente Principal",
-                options=productos
-            ),
-            "Unidad Usada": st.column_config.SelectboxColumn(
-                "Unidad Usada",
-                options=["oz", "lb", "unidad"]
-            ),
-            "Cantidad Usada": st.column_config.NumberColumn(format="%.2f"),
-            "Cápsulas Usadas": st.column_config.NumberColumn(format="%d"),
-            "Costo Empaque": st.column_config.NumberColumn(format="$%.2f"),
-            "Costo Label": st.column_config.NumberColumn(format="$%.2f"),
-            "Otros Costos": st.column_config.NumberColumn(format="$%.2f"),
-            "Precio Venta": st.column_config.NumberColumn(format="$%.2f"),
+            "Costo capsula o empaque": st.column_config.NumberColumn("Costo capsula o empaque", format="$%.2f"),
+            "Costo Producto oz": st.column_config.NumberColumn("Costo Producto oz", format="$%.2f"),
+            "Costo Label": st.column_config.NumberColumn("Costo Label", format="$%.2f"),
+            "Costo Empaque": st.column_config.NumberColumn("Costo Empaque", format="$%.2f"),
+            "Costo producto": st.column_config.NumberColumn("Costo producto", format="$%.2f"),
+            "Cantidad a calcular": st.column_config.NumberColumn("Cantidad a calcular", format="%.0f"),
+            "Margen de ganancia": st.column_config.NumberColumn("Margen de ganancia", format="%.2f"),
+            "Precio de venta": st.column_config.NumberColumn("Precio de venta", format="$%.2f"),
+            "Ganancia por Producto": st.column_config.NumberColumn("Ganancia por Producto", format="$%.2f"),
+            "Costo total": st.column_config.NumberColumn("Costo total", format="$%.2f"),
+            "Ganancia total": st.column_config.NumberColumn("Ganancia total", format="$%.2f"),
+            "Ingreso total": st.column_config.NumberColumn("Ingreso total", format="$%.2f"),
+            "Margen %": st.column_config.NumberColumn("Margen %", format="%.2f%%"),
         }
     )
 
-    costos = inventario_editado.set_index("Artículo").to_dict("index")
+    productos_resultado = calcular_productos(productos_editados)
 
-    resultados = []
+    st.subheader("Resumen de productos")
 
-    for _, row in ventas.iterrows():
-        producto_venta = row.get("Producto Venta")
-        ingrediente = row.get("Ingrediente Principal")
+    columnas_mostrar = [
+        "Categoría",
+        "Artículo",
+        "Costo producto",
+        "Cantidad a calcular",
+        "Margen %",
+        "Precio de venta",
+        "Ganancia por Producto",
+        "Costo total",
+        "Ganancia total",
+        "Ingreso total"
+    ]
 
-        if pd.isna(producto_venta) or pd.isna(ingrediente):
-            continue
+    columnas_existentes = [
+        col for col in columnas_mostrar
+        if col in productos_resultado.columns
+    ]
 
-        data_producto = costos.get(ingrediente, {})
-        unidad_usada = row.get("Unidad Usada", "oz")
+    st.dataframe(
+        productos_resultado[columnas_existentes].style.format({
+            "Costo producto": "${:.2f}",
+            "Precio de venta": "${:.2f}",
+            "Ganancia por Producto": "${:.2f}",
+            "Costo total": "${:.2f}",
+            "Ganancia total": "${:.2f}",
+            "Ingreso total": "${:.2f}",
+            "Margen %": "{:.2f}%"
+        }),
+        use_container_width=True
+    )
 
-        if unidad_usada == "oz":
-            costo_base = data_producto.get("Costo por onza", 0)
-        elif unidad_usada == "lb":
-            costo_base = data_producto.get("Costo por libra", 0)
-        else:
-            costo_base = data_producto.get("Costo unitario", 0)
+    pdf_buffer = generar_pdf_productos(productos_resultado)
 
-        if pd.isna(costo_base):
-            costo_base = 0
-
-        cantidad_usada = row.get("Cantidad Usada", 0)
-        capsulas_usadas = row.get("Cápsulas Usadas", 0)
-        costo_empaque = row.get("Costo Empaque", 0)
-        costo_label = row.get("Costo Label", 0)
-        otros_costos = row.get("Otros Costos", 0)
-        precio_venta = row.get("Precio Venta", 0)
-
-        cantidad_usada = 0 if pd.isna(cantidad_usada) else cantidad_usada
-        capsulas_usadas = 0 if pd.isna(capsulas_usadas) else capsulas_usadas
-        costo_empaque = 0 if pd.isna(costo_empaque) else costo_empaque
-        costo_label = 0 if pd.isna(costo_label) else costo_label
-        otros_costos = 0 if pd.isna(otros_costos) else otros_costos
-        precio_venta = 0 if pd.isna(precio_venta) else precio_venta
-
-        costo_ingrediente = costo_base * cantidad_usada
-
-        data_capsulas = costos.get("Cápsulas", {})
-        costo_capsula = data_capsulas.get("Costo unitario", 0)
-        costo_capsula = 0 if pd.isna(costo_capsula) else costo_capsula
-
-        costo_capsulas = costo_capsula * capsulas_usadas
-
-        costo_total = (
-            costo_ingrediente
-            + costo_capsulas
-            + costo_empaque
-            + costo_label
-            + otros_costos
-        )
-
-        ganancia = precio_venta - costo_total
-        margen = (ganancia / precio_venta) * 100 if precio_venta > 0 else 0
-
-        resultados.append({
-            "Producto Venta": producto_venta,
-            "Ingrediente Principal": ingrediente,
-            "Costo Ingrediente": costo_ingrediente,
-            "Costo Cápsulas": costo_capsulas,
-            "Costo Empaque": costo_empaque,
-            "Costo Label": costo_label,
-            "Otros Costos": otros_costos,
-            "Costo Total": costo_total,
-            "Precio Venta": precio_venta,
-            "Ganancia": ganancia,
-            "Margen %": margen
-        })
-
-    resultados_df = pd.DataFrame(resultados)
-
-    st.subheader("Resultados")
-
-    if not resultados_df.empty:
-        st.dataframe(
-            resultados_df.style.format({
-                "Costo Ingrediente": "${:.2f}",
-                "Costo Cápsulas": "${:.2f}",
-                "Costo Empaque": "${:.2f}",
-                "Costo Label": "${:.2f}",
-                "Otros Costos": "${:.2f}",
-                "Costo Total": "${:.2f}",
-                "Precio Venta": "${:.2f}",
-                "Ganancia": "${:.2f}",
-                "Margen %": "{:.2f}%"
-            }),
-            use_container_width=True
-        )
-
-        st.download_button(
-            "⬇️ Descargar tabla de ganancias CSV",
-            data=resultados_df.to_csv(index=False).encode("utf-8"),
-            file_name="precios_ganancias.csv",
-            mime="text/csv"
-        )
-    else:
-        st.warning("No hay productos de venta para calcular.")
-
+    st.download_button(
+        "📄 Descargar reporte PDF",
+        data=pdf_buffer,
+        file_name="reporte_productos_econatura.pdf",
+        mime="application/pdf"
+    )
 
 with tab3:
     st.subheader("Resumen general")
