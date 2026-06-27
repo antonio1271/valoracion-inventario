@@ -373,13 +373,25 @@ def cargar_inventario():
 def recalcular_costos(df):
     df = df.copy()
 
-    for i, row in df.iterrows():
-        costo = limpiar_numero(row.get("Costo compra", 0))
-        cantidad = limpiar_numero(row.get("Cantidad compra", 0))
-        unidad = str(row.get("Unidad medida", "")).strip().lower()
+    columnas_calculo = [
+        "Costo compra",
+        "Cantidad compra",
+        "Costo unitario",
+        "Costo por onza",
+        "Costo por libra"
+    ]
 
-        if costo is None or cantidad is None:
-            continue
+    for col in columnas_calculo:
+        if col not in df.columns:
+            df[col] = None
+
+        df[col] = df[col].apply(limpiar_numero)
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    for i, row in df.iterrows():
+        costo = row.get("Costo compra", 0)
+        cantidad = row.get("Cantidad compra", 0)
+        unidad = str(row.get("Unidad medida", "")).strip().lower()
 
         if pd.isna(costo) or pd.isna(cantidad) or cantidad == 0:
             continue
@@ -390,17 +402,17 @@ def recalcular_costos(df):
         if "libra" in unidad:
             df.at[i, "Costo por onza"] = costo / (cantidad * 16)
             df.at[i, "Costo por libra"] = costo / cantidad
-            df.at[i, "Costo unitario"] = None
+            df.at[i, "Costo unitario"] = float("nan")
 
         elif "onza" in unidad or "oz" in unidad:
             df.at[i, "Costo por onza"] = costo / cantidad
             df.at[i, "Costo por libra"] = (costo / cantidad) * 16
-            df.at[i, "Costo unitario"] = None
+            df.at[i, "Costo unitario"] = float("nan")
 
         elif "unidad" in unidad or "label" in unidad or "capsula" in unidad or "cápsula" in unidad:
             df.at[i, "Costo unitario"] = costo / cantidad
-            df.at[i, "Costo por onza"] = None
-            df.at[i, "Costo por libra"] = None
+            df.at[i, "Costo por onza"] = float("nan")
+            df.at[i, "Costo por libra"] = float("nan")
 
     return df
 
