@@ -374,24 +374,30 @@ def recalcular_costos(df):
     df = df.copy()
 
     for i, row in df.iterrows():
-        costo = row.get("Costo compra", 0)
-        cantidad = row.get("Cantidad compra", 0)
-        unidad = str(row.get("Unidad medida", "")).lower()
+        costo = limpiar_numero(row.get("Costo compra", 0))
+        cantidad = limpiar_numero(row.get("Cantidad compra", 0))
+        unidad = str(row.get("Unidad medida", "")).strip().lower()
+
+        if costo is None or cantidad is None:
+            continue
 
         if pd.isna(costo) or pd.isna(cantidad) or cantidad == 0:
             continue
+
+        costo = float(costo)
+        cantidad = float(cantidad)
 
         if "libra" in unidad:
             df.at[i, "Costo por onza"] = costo / (cantidad * 16)
             df.at[i, "Costo por libra"] = costo / cantidad
             df.at[i, "Costo unitario"] = None
 
-        elif "onza" in unidad:
+        elif "onza" in unidad or "oz" in unidad:
             df.at[i, "Costo por onza"] = costo / cantidad
             df.at[i, "Costo por libra"] = (costo / cantidad) * 16
             df.at[i, "Costo unitario"] = None
 
-        elif "unidad" in unidad or "label" in unidad:
+        elif "unidad" in unidad or "label" in unidad or "capsula" in unidad or "cápsula" in unidad:
             df.at[i, "Costo unitario"] = costo / cantidad
             df.at[i, "Costo por onza"] = None
             df.at[i, "Costo por libra"] = None
