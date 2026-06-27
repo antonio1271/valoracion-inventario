@@ -368,6 +368,7 @@ def cargar_inventario():
             df[col] = df[col].apply(limpiar_numero)
 
     return df.reset_index(drop=True)
+  def recalcular_costos(df):
     df = df.copy()
 
     for i, row in df.iterrows():
@@ -394,7 +395,6 @@ def cargar_inventario():
             df.at[i, "Costo por libra"] = None
 
     return df
-
 
 mostrar_encabezado(
     "Sistema privado para calcular costos, precios de venta, ganancias y márgenes."
