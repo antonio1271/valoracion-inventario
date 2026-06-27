@@ -343,15 +343,15 @@ def cargar_inventario():
 
     df = pd.DataFrame(data, columns=headers)
 
-    df.columns = [
+        df.columns = [
         str(col).strip().replace("  ", " ")
         for col in df.columns
     ]
-# Elimina columnas vacías y duplicadas para evitar error en st.data_editor
-df = df.loc[:, df.columns.astype(str).str.strip() != ""]
-df = df.loc[:, ~df.columns.duplicated()]
-    df = df[df["Categoría"].astype(str).str.strip() != ""]
-    df = df[df["Categoría"] != "TOTAL COSTOS REGISTRADOS"]
+    # Elimina columnas vacías y duplicadas para evitar error en st.data_editor
+    df = df.loc[:, df.columns.astype(str).str.strip() != ""]
+    df = df.loc[:, ~df.columns.duplicated()]
+        df = df[df["Categoría"].astype(str).str.strip() != ""]
+        df = df[df["Categoría"] != "TOTAL COSTOS REGISTRADOS"]
 
     columnas_numericas = [
         "Costo compra",
