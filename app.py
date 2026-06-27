@@ -320,9 +320,9 @@ def generar_pdf_productos(df):
 @st.cache_data(ttl=60)
 def cargar_inventario():
     scopes = [
-    "https://www.googleapis.com/auth/spreadsheets.readonly",
-    "https://www.googleapis.com/auth/drive.readonly"
-]
+        "https://www.googleapis.com/auth/spreadsheets.readonly",
+        "https://www.googleapis.com/auth/drive.readonly"
+    ]
 
     creds_dict = obtener_credenciales_google()
 
@@ -343,8 +343,6 @@ def cargar_inventario():
 
     df = pd.DataFrame(data, columns=headers)
 
-        df = pd.DataFrame(data, columns=headers)
-
     df.columns = [
         str(col).strip().replace("  ", " ")
         for col in df.columns
@@ -358,7 +356,6 @@ def cargar_inventario():
     df = df[df["Categoría"] != "TOTAL COSTOS REGISTRADOS"]
 
     columnas_numericas = [
-    columnas_numericas = [
         "Costo compra",
         "Cantidad compra",
         "Costo unitario",
@@ -371,9 +368,6 @@ def cargar_inventario():
             df[col] = df[col].apply(limpiar_numero)
 
     return df.reset_index(drop=True)
-
-
-def recalcular_costos(df):
     df = df.copy()
 
     for i, row in df.iterrows():
