@@ -146,11 +146,12 @@ def cargar_productos():
         str(col).strip().replace("\n", " ").replace("  ", " ")
         for col in df.columns
     ]
-# Elimina columnas vacías y duplicadas para evitar error en st.data_editor
-df = df.loc[:, df.columns.astype(str).str.strip() != ""]
-df = df.loc[:, ~df.columns.duplicated()]
-df = df[df["Artículo"].astype(str).str.strip() != ""]
 
+    # Elimina columnas vacías y duplicadas para evitar error en st.data_editor
+    df = df.loc[:, df.columns.astype(str).str.strip() != ""]
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    df = df[df["Artículo"].astype(str).str.strip() != ""]
     columnas_dinero = [
         "Costo capsula o empaque",
         "Costo capsula empaque",
