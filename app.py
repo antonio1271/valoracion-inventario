@@ -367,8 +367,10 @@ def cargar_inventario():
         if col in df.columns:
             df[col] = df[col].apply(limpiar_numero)
 
-    return df.reset_index(drop=True)
-  def recalcular_costos(df):
+        return df.reset_index(drop=True)
+
+
+def recalcular_costos(df):
     df = df.copy()
 
     for i, row in df.iterrows():
