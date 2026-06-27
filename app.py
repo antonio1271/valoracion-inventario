@@ -346,7 +346,9 @@ def cargar_inventario():
         str(col).strip().replace("  ", " ")
         for col in df.columns
     ]
-
+# Elimina columnas vacías y duplicadas para evitar error en st.data_editor
+df = df.loc[:, df.columns.astype(str).str.strip() != ""]
+df = df.loc[:, ~df.columns.duplicated()]
     df = df[df["Categoría"].astype(str).str.strip() != ""]
     df = df[df["Categoría"] != "TOTAL COSTOS REGISTRADOS"]
 
